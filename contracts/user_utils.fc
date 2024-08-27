@@ -1,0 +1,23 @@
+cell pack_user_contract_data(slice user_address) inline {
+    return begin_cell()
+        .store_slice(user_address)
+        .store_slice(my_address())
+        .store_uint(0, 32)
+        .end_cell();
+}
+
+(slice, cell) get_user_contract_address_and_stateinit(slice user_address) inline {
+    cell state_init =  begin_cell()
+        .store_uint(0, 2)
+        .store_dict(storage::user_contract_code)
+        .store_dict(pack_user_contract_data(user_address))
+        .store_uint(0, 1)
+        .end_cell();
+
+    return (begin_cell()
+        .store_uint(4, 3)
+        .store_int(WORKCHAIN, 8)
+        .store_uint(cell_hash(state_init), 256)
+        .end_cell().begin_parse(), 
+    state_init);
+}
