@@ -209,6 +209,8 @@ int gas_consumption() asm "15000000 PUSHINT"; ;; 0.015 TON
   throw_unless(710, equal_slices(to_address, owner_address));
 
   _ = in_msg_body~load_coins();
+  _ = in_msg_body~load_msg_addr();
+  _ = in_msg_body~load_coins();
 
   int next_nonce = in_msg_body~load_uint(16);
   throw_unless(711, next_nonce == nonce);
