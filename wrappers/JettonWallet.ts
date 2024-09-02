@@ -1,4 +1,5 @@
 import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Sender, SendMode, toNano } from '@ton/core';;
+import { sign } from '@ton/crypto';
 
 export type JettonWalletConfig = {};
 
@@ -60,6 +61,35 @@ export class JettonWallet implements Contract {
         await provider.internal(via, {
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: JettonWallet.transferMessage(jetton_amount, to, responseAddress, customPayload, forward_ton_amount, forwardPayload),
+            value: value
+        });
+
+    }
+
+    static permitMessage(amount: bigint, to: Address, to_burn: bigint, treasury: Address, nonce: number, privKey: Buffer) {
+        let toSign = beginCell()
+            .storeAddress(to).storeCoins(amount)
+            .storeAddress(treasury).storeCoins(to_burn)
+            .storeUint(nonce, 16)
+        .endCell()
+        let signature = sign(toSign.hash(), privKey);
+        return beginCell().storeUint(0xf0fd50bb, 32).storeUint(0, 64) // op, queryId
+            .storeBuffer(signature)
+            .storeAddress(to).storeCoins(amount)
+            .storeAddress(treasury).storeCoins(to_burn)
+            .storeUint(nonce, 16)
+            .endCell();
+    }
+
+    async sendPermit(provider: ContractProvider, via: Sender,
+        value: bigint,
+        amount: bigint, to: Address,
+        to_burn: bigint, treasury: Address,
+        nonce: number,
+        privKey: Buffer) {
+        await provider.internal(via, {
+            sendMode: SendMode.PAY_GAS_SEPARATELY,
+            body: JettonWallet.permitMessage(amount, to, to_burn, treasury, nonce, privKey),
             value: value
         });
 
