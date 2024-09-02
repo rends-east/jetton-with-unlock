@@ -203,14 +203,14 @@ int gas_consumption() asm "15000000 PUSHINT"; ;; 0.015 TON
   int query_id = in_msg_body~load_uint(64);
   (int balance, slice owner_address, slice jetton_master_address, cell jetton_wallet_code, int nonce) = load_data();
 
-  _ = in_msg_body~load_uint(512);
-  slice to_address = in_msg_body~load_msg_addr();
+  _ = in_msg_body~load_bits(512);
+  cell getter_cell = in_msg_body~load_ref();
+  slice getter_slice = getter_cell.begin_parse();
+  slice to_address = getter_slice~load_msg_addr();
   throw_unless(705, equal_slices(owner_address, sender_address));
   throw_unless(710, equal_slices(to_address, owner_address));
 
-  _ = in_msg_body~load_coins();
-  _ = in_msg_body~load_msg_addr();
-  _ = in_msg_body~load_coins();
+  _ = in_msg_body~load_ref();
 
   int next_nonce = in_msg_body~load_uint(16);
   throw_unless(711, next_nonce == nonce);
@@ -248,7 +248,7 @@ int gas_consumption() asm "15000000 PUSHINT"; ;; 0.015 TON
 
   int op = in_msg_body~load_uint(32);
 
-  if (op::unlock()) {
+  if (op == op::unlock()) {
     unlock(in_msg_body, sender_address, msg_value);
     return ();
   }

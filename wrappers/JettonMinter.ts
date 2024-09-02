@@ -5,13 +5,13 @@ export type JettonMinterContent = {
     uri: string
 };
 
-export type JettonMinterConfig = { admin: Address; content: Cell; wallet_code: Cell, public_key: bigint };
+export type JettonMinterConfig = { admin: Address; content: Cell; wallet_code: Cell, public_key: Buffer };
 
 export function jettonMinterConfigToCell(config: JettonMinterConfig): Cell {
     return beginCell()
         .storeCoins(0)
         .storeAddress(config.admin)
-        .storeUint(config.public_key, 256)
+        .storeBuffer(config.public_key)
         .storeRef(config.content)
         .storeRef(config.wallet_code)
         .endCell();
@@ -44,20 +44,35 @@ export class JettonMinter implements Contract {
         });
     }
 
-    static mintMessage(to: Address, jetton_amount: bigint, forward_ton_amount: bigint, total_ton_amount: bigint,) {
-        return beginCell().storeUint(0x4fda1e51, 32).storeUint(0, 64) // op, queryId
-            .storeAddress(to).storeCoins(jetton_amount)
-            .storeCoins(forward_ton_amount).storeCoins(total_ton_amount)
-            .endCell();
+    static mintMessage(from: Address, to: Address, jetton_amount: bigint, forward_ton_amount: bigint, total_ton_amount: bigint, query_id: number | bigint = 0) {
+		const mintMsg = beginCell().storeUint(0x178d4519, 32)
+                                   .storeUint(0, 64)
+                                   .storeCoins(jetton_amount)
+                                   .storeAddress(null)
+                                   .storeAddress(from) // Response addr
+                                   .storeCoins(forward_ton_amount)
+                                   .storeMaybeRef(null)
+                    .endCell();
+
+        return beginCell().storeUint(21, 32).storeUint(query_id, 64) // op, queryId
+                          .storeAddress(to)
+                          .storeCoins(total_ton_amount)
+                          .storeCoins(jetton_amount)
+                          .storeRef(mintMsg)
+               .endCell();
     }
 
-    async sendMint(provider: ContractProvider, via: Sender, to: Address, jetton_amount: bigint, forward_ton_amount: bigint, total_ton_amount: bigint,) {
+    async sendMint(provider: ContractProvider, via: Sender, to: Address, jetton_amount: bigint, forward_ton_amount: bigint, total_ton_amount: bigint) {
+        if(total_ton_amount <= forward_ton_amount) {
+            throw new Error("Total ton amount should be > forward amount");
+        }
         await provider.internal(via, {
             sendMode: SendMode.PAY_GAS_SEPARATELY,
-            body: JettonMinter.mintMessage(to, jetton_amount, forward_ton_amount, total_ton_amount,),
-            value: total_ton_amount + toNano("0.1"),
+            body: JettonMinter.mintMessage(this.address, to, jetton_amount, forward_ton_amount, total_ton_amount),
+            value: total_ton_amount + toNano('0.1'),
         });
     }
+
 
     static discoveryMessage(owner: Address, include_address: boolean) {
         return beginCell().storeUint(0x2c76b973, 32).storeUint(0, 64) // op, queryId
@@ -180,49 +195,4 @@ export class JettonMinter implements Contract {
         return res.content;
     }
 
-    async getICOData(provider: ContractProvider) {
-        let res = await provider.get('get_ico_data', []);
-        let state = res.stack.readBoolean();
-        let price = res.stack.readBigNumber();
-        let cap = res.stack.readBigNumber();
-        let start_date = res.stack.readNumber();
-        let end_date = res.stack.readNumber();
-        return {
-            state,
-            price,
-            cap,
-            start_date,
-            end_date
-        };
-    }
-
-    async getICOState(provider: ContractProvider) {
-        let res = await this.getICOData(provider);
-        return res.state;
-    }
-
-    async getICOPrice(provider: ContractProvider) {
-        let res = await this.getICOData(provider);
-        return res.price;
-    }
-
-    async getICOCap(provider: ContractProvider) {
-        let res = await this.getICOData(provider);
-        return res.cap;
-    }
-
-    async getICOStartDate(provider: ContractProvider) {
-        let res = await this.getICOData(provider);
-        return res.start_date;
-    }
-
-    async getICOEndDate(provider: ContractProvider) {
-        let res = await this.getICOData(provider);
-        return res.end_date;
-    }
-
-    async getJettonAmount(provider: ContractProvider, value: bigint) {
-        let res = await provider.get('get_jetton_amount', [{type: "int", value}]);
-        return res.stack.readBigNumber();
-    }
 }

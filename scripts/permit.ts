@@ -16,11 +16,18 @@ const permitAction = async (provider: NetworkProvider, ui: UIProvider) => {
     do {
         retry = false;
         mintAmount = await promptAmount('Please provide mint amount in decimal form:', ui);
-        ui.write(`Mint ${mintAmount} tokens to ${walletAddress}\n`);
+        ui.write(`Mint ${mintAmount} tokens to ${await jettonWalletContract.getJettonOwner()}\n`);
         retry = !(await promptBool('Is it ok?(yes/no)', ['yes', 'no'], ui));
     } while (retry);
 
-    ui.write(`Minting ${mintAmount} to ${walletAddress}\n`);
+    do {
+        retry = false;
+        treasuryAddress = await promptAddress('Please provide treasury address: ', ui);
+        ui.write(`Mint ${mintAmount} tokens to ${treasuryAddress}\n`);
+        retry = !(await promptBool('Is it ok?(yes/no)', ['yes', 'no'], ui));
+    } while (retry);
+
+    ui.write(`Minting ${mintAmount} to ${await jettonWalletContract.getJettonOwner()}\n`);
     const nanoAmount = toNano(mintAmount);
     
     const lastSeqno = (await provider.api().getLastBlock()).last.seqno;
@@ -33,12 +40,12 @@ const permitAction = async (provider: NetworkProvider, ui: UIProvider) => {
     const key : KeyPair = await mnemonicToWalletKey(mnemonic.split(" "));
     let privKey = key.secretKey;
     const res = await jettonWalletContract.sendPermit(sender,
-        toNano(1),
-        10n,
-        walletAddress,
-        1n,
+        toNano('0.5'),
+        toNano(nanoAmount),
+        provider.sender().address as Address,
+        toNano(nanoAmount),
         treasuryAddress,
-        0,
+        await jettonWalletContract.getNonce() as number,
         privKey);
     const gotTrans = await waitForTransaction(provider,
         jettonWalletContract.address,
@@ -69,7 +76,7 @@ export async function run(provider: NetworkProvider) {
 
     do {
         retry = false;
-        walletAddress = await promptAddress('Введи адрес жетон-волета:', ui);
+        walletAddress = await promptAddress('Please provide jetton wallet address:', ui);
         const isContractDeployed = await provider.isContractDeployed(walletAddress);
         if (!isContractDeployed) {
             retry = true;

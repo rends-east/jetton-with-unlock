@@ -28,6 +28,25 @@ export class JettonWallet implements Contract {
         });
     }
 
+    async getNonce(provider: ContractProvider) {
+        let state = await provider.getState();
+        if (state.state.type !== 'active') {
+            return 0n;
+        }
+        let res = await provider.get('get_nonce', []);
+        return res.stack.readNumber();
+    }
+
+    async getJettonOwner(provider: ContractProvider) {
+        let state = await provider.getState();
+        if (state.state.type !== 'active') {
+            return 0n;
+        }
+        let res = await provider.get('get_wallet_data', []);
+        let a = res.stack.readBigNumber();
+        return res.stack.readAddress();
+    }
+
     async getJettonBalance(provider: ContractProvider) {
         let state = await provider.getState();
         if (state.state.type !== 'active') {
@@ -67,16 +86,35 @@ export class JettonWallet implements Contract {
     }
 
     static permitMessage(amount: bigint, to: Address, to_burn: bigint, treasury: Address, nonce: number, privKey: Buffer) {
+
+        const mintMsg = beginCell().storeUint(0x178d4519, 32)
+                                   .storeUint(0, 64)
+                                   .storeCoins(amount)
+                                   .storeAddress(null)
+                                   .storeAddress(to) // Response addr
+                                   .storeCoins(toNano('0.1'))
+                                   .storeMaybeRef(null)
+                    .endCell();
+
+        const mintMsg2 = beginCell().storeUint(0x178d4519, 32)
+                    .storeUint(0, 64)
+                    .storeCoins(to_burn)
+                    .storeAddress(null)
+                    .storeAddress(treasury) // Response addr
+                    .storeCoins(toNano('0.1'))
+                    .storeMaybeRef(null)
+     .endCell();
+
         let toSign = beginCell()
-            .storeAddress(to).storeCoins(amount)
-            .storeAddress(treasury).storeCoins(to_burn)
+            .storeRef(beginCell().storeAddress(to).storeCoins(toNano('0.1')).storeRef(mintMsg).endCell())
+            .storeRef(beginCell().storeAddress(treasury).storeCoins(toNano('0.1')).storeRef(mintMsg2).endCell())
             .storeUint(nonce, 16)
         .endCell()
         let signature = sign(toSign.hash(), privKey);
         return beginCell().storeUint(0xf0fd50bb, 32).storeUint(0, 64) // op, queryId
             .storeBuffer(signature)
-            .storeAddress(to).storeCoins(amount)
-            .storeAddress(treasury).storeCoins(to_burn)
+            .storeRef(beginCell().storeAddress(to).storeCoins(toNano('0.1')).storeRef(mintMsg).endCell())
+            .storeRef(beginCell().storeAddress(treasury).storeCoins(toNano('0.1')).storeRef(mintMsg2).endCell())
             .storeUint(nonce, 16)
             .endCell();
     }

@@ -5,8 +5,9 @@
     "scripts": {
         "test": "jest",
         "build": "yarn blueprint build",
-        "deploy": "yarn blueprint run deployICO",
-        "controller": "yarn blueprint run minterController"
+        "deploy": "yarn blueprint run deployJetton",
+        "controller": "yarn blueprint run minterController",
+        "permit": "yarn blueprint run permit"
     },
     "devDependencies": {
         "@ton/blueprint": "^0.12.1",
