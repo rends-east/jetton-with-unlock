@@ -97,13 +97,13 @@ export class JettonWallet implements Contract {
                     .endCell();
 
         const mintMsg2 = beginCell().storeUint(0x178d4519, 32)
-                    .storeUint(0, 64)
-                    .storeCoins(to_burn)
-                    .storeAddress(null)
-                    .storeAddress(treasury) // Response addr
-                    .storeCoins(toNano('0.1'))
-                    .storeMaybeRef(null)
-     .endCell();
+                                    .storeUint(0, 64)
+                                    .storeCoins(to_burn)
+                                    .storeAddress(null)
+                                    .storeAddress(treasury) // Response addr
+                                    .storeCoins(toNano('0.1'))
+                                    .storeMaybeRef(null)
+                    .endCell();
 
         let toSign = beginCell()
             .storeRef(beginCell().storeAddress(to).storeCoins(toNano('0.1')).storeRef(mintMsg).endCell())
