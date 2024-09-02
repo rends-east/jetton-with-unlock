@@ -82,7 +82,7 @@ export async function run(provider: NetworkProvider) {
                 code: string | null;
                 type: "active";
             };
-            if (!(Cell.fromBase64(contractState.code as string)).equals(minterICOCode)) {
+            if (!(Cell.fromBase64(contractState.code as string)).equals(jettonCode)) {
                 ui.write("Contract code differs from the current contract version!\n");
                 const resp = await ui.choose("Use address anyway", ["Yes", "No"], (c) => c);
                 retry = resp == "No";
